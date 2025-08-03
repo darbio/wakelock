@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Wake Lock</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      color: #333;
+    }
+    #status {
+      font-weight: bold;
+      color: green;
+    }
+    #status.inactive {
+      color: red;
+    }
+    button {
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      margin-top: 1rem;
+      cursor: pointer;
+    }
+    .explanation {
+      margin-top: 2rem;
+      max-width: 700px;
+    }
+    pre {
+      background: #eee;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    code {
+      font-family: monospace;
+    }
+    footer {
+      margin-top: 3rem;
+      font-size: 0.9rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Wake Lock</h1>
+
+  <p>Status: <span id="status" class="inactive">Inactive</span></p>
+  <button id="toggleBtn">Enable Wake Lock</button>
+
+  <div class="explanation">
+    <h2>What is Wake Lock?</h2>
+    <p>
+      This page demonstrates the 
+      <a href="https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API" target="_blank">Screen Wake Lock API</a>,
+      which keeps your screen awake while this page is open.
+    </p>
+
+    <h2>How it works</h2>
+    <p>
+      When you click the <strong>Enable Wake Lock</strong> button, this page asks your browser
+      to prevent your screen from dimming or locking automatically.
+      When you disable it or close the tab, your device goes back to normal.
+    </p>
+
+    <h3>Key points:</h3>
+    <ul>
+      <li>✅ Uses the standard <code>navigator.wakeLock</code> API built into modern browsers.</li>
+      <li>✅ No personal data is collected or sent — this page runs entirely in your browser.</li>
+      <li>✅ You can check the source code yourself below.</li>
+    </ul>
+
+    <h3>Example code:</h3>
+    <pre><code>
+navigator.wakeLock.request('screen')
+  .then(lock => { 
+    // Keeps the screen on 
+  })
+  .catch(err => {
+    console.error(err);
+  });
+    </code></pre>
+  </div>
+
+  <footer>
+    <p><strong>Privacy:</strong> This page does not track you, collect analytics, or store any data. It only uses your device’s browser to keep the screen awake.</p>
+    <p>Source code: <a href="https://github.com/darbio/wakelock" target="_blank">View on GitHub</a></p>
+    <p>Hosted at <a href="https://wakelock.darb.io" target="_blank">wakelock.darb.io</a></p>
+  </footer>
+
+  <script>
+    let wakeLock = null;
+    const statusEl = document.getElementById('status');
+    const toggleBtn = document.getElementById('toggleBtn');
+
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          statusEl.textContent = 'Active';
+          statusEl.classList.remove('inactive');
+          console.log('Wake Lock is active.');
+
+          wakeLock.addEventListener('release', () => {
+            console.log('Wake Lock released.');
+            statusEl.textContent = 'Inactive';
+            statusEl.classList.add('inactive');
+            toggleBtn.textContent = 'Enable Wake Lock';
+            wakeLock = null;
+          });
+        } else {
+          alert('Wake Lock API is not supported by your browser.');
+        }
+      } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (wakeLock !== null) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    }
+
+    toggleBtn.addEventListener('click', () => {
+      if (wakeLock === null) {
+        requestWakeLock();
+        toggleBtn.textContent = 'Disable Wake Lock';
+      } else {
+        releaseWakeLock();
+        toggleBtn.textContent = 'Enable Wake Lock';
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (wakeLock === null && document.visibilityState === 'visible' && toggleBtn.textContent === 'Disable Wake Lock') {
+        requestWakeLock();
+      }
+    });
+  </script>
+</body>
+</html>

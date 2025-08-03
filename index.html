@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Wake Lock</title>
+  <title>Wake Lock Demo</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -43,45 +43,51 @@
       font-size: 0.9rem;
       color: #555;
     }
+    video {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <h1>Wake Lock</h1>
+  <h1>Wake Lock Demo</h1>
 
   <p>Status: <span id="status" class="inactive">Inactive</span></p>
   <button id="toggleBtn">Enable Wake Lock</button>
+
+  <!-- Hidden video fallback for Safari -->
+  <video id="fallbackVideo" loop muted playsinline>
+    <source src="data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDFtcDQxaXNvbWF2YzEAAAAIZnJlZQAAAAhtZGF0YQAAAAE=" type="video/mp4">
+  </video>
 
   <div class="explanation">
     <h2>What is Wake Lock?</h2>
     <p>
       This page demonstrates the 
       <a href="https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API" target="_blank">Screen Wake Lock API</a>,
-      which keeps your screen awake while this page is open.
+      which keeps your screen awake while this page is open. On Safari, it uses a small hidden video to achieve the same effect.
     </p>
 
     <h2>How it works</h2>
     <p>
-      When you click the <strong>Enable Wake Lock</strong> button, this page asks your browser
-      to prevent your screen from dimming or locking automatically.
-      When you disable it or close the tab, your device goes back to normal.
+      When you click <strong>Enable Wake Lock</strong>, this page either uses the official API or plays a hidden looping video to prevent the screen from dimming.
     </p>
 
     <h3>Key points:</h3>
     <ul>
-      <li>✅ Uses the standard <code>navigator.wakeLock</code> API built into modern browsers.</li>
-      <li>✅ No personal data is collected or sent — this page runs entirely in your browser.</li>
-      <li>✅ You can check the source code yourself below.</li>
+      <li>✅ Uses the standard <code>navigator.wakeLock</code> API if supported.</li>
+      <li>✅ Falls back to a muted hidden video on Safari and unsupported browsers.</li>
+      <li>✅ No personal data is collected or sent.</li>
+      <li>✅ Full source: <a href="https://github.com/darbio/wakelock" target="_blank">GitHub Repo</a></li>
     </ul>
 
     <h3>Example code:</h3>
     <pre><code>
-navigator.wakeLock.request('screen')
-  .then(lock => { 
-    // Keeps the screen on 
-  })
-  .catch(err => {
-    console.error(err);
-  });
+if ('wakeLock' in navigator) {
+  await navigator.wakeLock.request('screen');
+} else {
+  // Fallback: play hidden looping video
+  fallbackVideo.play();
+}
     </code></pre>
   </div>
 
@@ -95,25 +101,24 @@ navigator.wakeLock.request('screen')
     let wakeLock = null;
     const statusEl = document.getElementById('status');
     const toggleBtn = document.getElementById('toggleBtn');
+    const fallbackVideo = document.getElementById('fallbackVideo');
 
     async function requestWakeLock() {
       try {
         if ('wakeLock' in navigator) {
           wakeLock = await navigator.wakeLock.request('screen');
-          statusEl.textContent = 'Active';
-          statusEl.classList.remove('inactive');
           console.log('Wake Lock is active.');
-
           wakeLock.addEventListener('release', () => {
             console.log('Wake Lock released.');
-            statusEl.textContent = 'Inactive';
-            statusEl.classList.add('inactive');
-            toggleBtn.textContent = 'Enable Wake Lock';
             wakeLock = null;
+            updateStatus(false);
           });
         } else {
-          alert('Wake Lock API is not supported by your browser.');
+          // Safari fallback: play hidden video
+          await fallbackVideo.play();
+          console.log('Fallback video playing to keep screen awake.');
         }
+        updateStatus(true);
       } catch (err) {
         console.error(`${err.name}, ${err.message}`);
       }
@@ -123,22 +128,44 @@ navigator.wakeLock.request('screen')
       if (wakeLock !== null) {
         await wakeLock.release();
         wakeLock = null;
+        console.log('Wake Lock released manually.');
+      } else {
+        // Safari fallback: pause video
+        fallbackVideo.pause();
+        fallbackVideo.currentTime = 0;
+        console.log('Fallback video paused.');
+      }
+      updateStatus(false);
+    }
+
+    function updateStatus(active) {
+      if (active) {
+        statusEl.textContent = 'Active';
+        statusEl.classList.remove('inactive');
+        toggleBtn.textContent = 'Disable Wake Lock';
+      } else {
+        statusEl.textContent = 'Inactive';
+        statusEl.classList.add('inactive');
+        toggleBtn.textContent = 'Enable Wake Lock';
       }
     }
 
     toggleBtn.addEventListener('click', () => {
-      if (wakeLock === null) {
+      if (wakeLock === null && fallbackVideo.paused) {
         requestWakeLock();
-        toggleBtn.textContent = 'Disable Wake Lock';
       } else {
         releaseWakeLock();
-        toggleBtn.textContent = 'Enable Wake Lock';
       }
     });
 
     document.addEventListener('visibilitychange', () => {
-      if (wakeLock === null && document.visibilityState === 'visible' && toggleBtn.textContent === 'Disable Wake Lock') {
-        requestWakeLock();
+      if (document.visibilityState === 'visible') {
+        if (wakeLock === null && !fallbackVideo.paused && toggleBtn.textContent === 'Disable Wake Lock') {
+          fallbackVideo.play();
+        }
+        if (wakeLock === null && toggleBtn.textContent === 'Disable Wake Lock') {
+          requestWakeLock();
+        }
       }
     });
   </script>
